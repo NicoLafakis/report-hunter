@@ -1,22 +1,42 @@
 :root {
-  --primary: #ff7a59;
-  --primary-hover: #ff8f73;
-  --bg-dark: #0a0e14;
-  --card-bg: #161b22;
+  /* Dark Theme (Default) */
+  --primary: #ff8f73;
+  /* Slightly lighter HubSpot Orange for better contrast on dark */
+  --primary-rgb: 255, 143, 115;
+  --bg-color: #010409;
+  --card-bg: #0d1117;
   --border-color: #30363d;
-  --text-main: #c9d1d9;
-  --text-dim: #8b949e;
-  --success: #238636;
-  --font-main: 'Inter', system-ui, -apple-system, sans-serif;
+  --text-main: #ffffff;
+  --text-dim: #ced4da;
+  --success: #3fb950;
+  --btn-text: #010409;
+}
+
+[data-theme="light"] {
+  --primary: #d94f2b;
+  /* Darker HubSpot Orange for better contrast on light */
+  --primary-rgb: 217, 79, 43;
+  --bg-color: #f6f8fa;
+  --card-bg: #ffffff;
+  --border-color: #d0d7de;
+  --text-main: #1f2328;
+  --text-dim: #57606a;
+  --success: #1a7f37;
+  --btn-text: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  margin: 0;
-  padding: 0;
-  background-color: var(--bg-dark);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-color);
   color: var(--text-main);
-  font-family: var(--font-main);
   line-height: 1.6;
+  transition: background-color 0.3s, color 0.3s;
 }
 
 .container {
@@ -29,8 +49,14 @@ body {
   background: var(--card-bg);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  padding: 2rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  margin-bottom: 2rem;
+  transition: background-color 0.3s, border-color 0.3s;
+}
+
+[data-theme="light"] .glass-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 h1,
@@ -97,13 +123,15 @@ input:focus {
 }
 
 .btn-primary {
-  background: var(--primary);
-  color: #fff;
+  background-color: var(--primary);
+  color: var(--btn-text);
+  font-weight: 700;
+  border: none;
 }
 
-.btn-primary:hover {
-  background: var(--primary-hover);
-  transform: translateY(-1px);
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-2px);
 }
 
 .btn-primary:disabled {
@@ -145,12 +173,13 @@ input:focus {
 }
 
 .selected-badge {
-  background: rgba(255, 122, 89, 0.1);
+  background: rgba(var(--primary-rgb), 0.15);
   color: var(--primary);
-  padding: 0.2rem 0.6rem;
-  border-radius: 12px;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
   font-size: 0.8rem;
-  border: 1px solid rgba(255, 122, 89, 0.3);
+  font-weight: 700;
+  border: 1px solid rgba(var(--primary-rgb), 0.3);
 }
 
 .report-suggestion {

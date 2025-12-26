@@ -14,17 +14,24 @@
 
 <body>
     <div id="app" class="container">
-        <header>
-            <div class="hubspot-logo">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                    <path
-                        d="M18.9,10.1c-1.2,0-2.1,0.9-2.1,2.1c0,0.2,0,0.4,0.1,0.6l-3,1.7c-0.4-0.4-1-0.7-1.7-0.7c-0.1,0-0.2,0-0.3,0l0-4.1 c0.8-0.3,1.4-1.1,1.4-2c0-1.2-1-2.2-2.2-2.2S8.9,6.5,8.9,7.7c0,0.9,0.5,1.7,1.3,2l0,4.1c-0.1,0-0.2,0-0.3,0c-0.7,0-1.3,0.3-1.7,0.7 l-3-1.7c0.1-0.2,0.1-0.4,0.1-0.6c0-1.2-1-2.1-2.1-2.1S1.1,11,1.1,12.2s1,2.1,2.1,2.1c0.7,0,1.3-0.3,1.7-0.8l3,1.7 c-0.1,0.2-0.1,0.4-0.1,0.6c0,1.2,1,2.2,2.2,2.2s2.2-1,2.2-2.2c0-0.2,0-0.4-0.1-0.6l3-1.7c0.4,0.5,1.1,0.8,1.8,0.8 c1.2,0,2.1-1,2.1-2.2S20.1,10.1,18.9,10.1z" />
-                </svg>
-                REPORT HUNTER
+        <header style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem;">
+            <div style="flex: 1;">
+                <div class="hubspot-logo">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M18.9,10.1c-1.2,0-2.1,0.9-2.1,2.1c0,0.2,0,0.4,0.1,0.6l-3,1.7c-0.4-0.4-1-0.7-1.7-0.7c-0.1,0-0.2,0-0.3,0l0-4.1 c0.8-0.3,1.4-1.1,1.4-2c0-1.2-1-2.2-2.2-2.2S8.9,6.5,8.9,7.7c0,0.9,0.5,1.7,1.3,2l0,4.1c-0.1,0-0.2,0-0.3,0c-0.7,0-1.3,0.3-1.7,0.7 l-3-1.7c0.1-0.2,0.1-0.4,0.1-0.6c0-1.2-1-2.1-2.1-2.1S1.1,11,1.1,12.2s1,2.1,2.1,2.1c0.7,0,1.3-0.3,1.7-0.8l3,1.7 c-0.1,0.2-0.1,0.4-0.1,0.6c0,1.2,1,2.2,2.2,2.2s2.2-1,2.2-2.2c0-0.2,0-0.4-0.1-0.6l3-1.7c0.4,0.5,1.1,0.8,1.8,0.8 c1.2,0,2.1-1,2.1-2.2S20.1,10.1,18.9,10.1z" />
+                    </svg>
+                    REPORT HUNTER
+                </div>
+                <h1>Generate Custom HubSpot Reports with AI</h1>
+                <p style="color: var(--text-dim);">Connect your portal, pick your properties, and let
+                    AI hunt down the best reporting insights for you.</p>
             </div>
-            <h1>Generate Custom HubSpot Reports with AI</h1>
-            <p style="color: var(--text-dim); margin-bottom: 2rem;">Connect your portal, pick your properties, and let
-                AI hunt down the best reporting insights for you.</p>
+            <button id="theme-toggle" class="btn"
+                style="padding: 0.5rem 1rem; display: flex; align-items: center; gap: 0.5rem; background: var(--card-bg); border: 1px solid var(--border-color);">
+                <span id="theme-toggle-icon">☀️</span>
+                <span id="theme-toggle-text">Light Mode</span>
+            </button>
         </header>
 
         <!-- Setup Phase -->

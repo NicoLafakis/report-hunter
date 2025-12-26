@@ -13,6 +13,32 @@ let storyPath = {
     timeframe: null
 };
 
+// Theme Toggle Logic
+const themeToggle = document.getElementById('theme-toggle');
+const themeToggleIcon = document.getElementById('theme-toggle-icon');
+const themeToggleText = document.getElementById('theme-toggle-text');
+
+function setTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+    if (theme === 'light') {
+        themeToggleIcon.innerText = '🌙';
+        themeToggleText.innerText = 'Dark Mode';
+    } else {
+        themeToggleIcon.innerText = '☀️';
+        themeToggleText.innerText = 'Light Mode';
+    }
+}
+
+// Init theme
+const savedTheme = localStorage.getItem('theme') || 'dark';
+setTheme(savedTheme);
+
+themeToggle.addEventListener('click', () => {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    setTheme(currentTheme === 'light' ? 'dark' : 'light');
+});
+
 const setupSection = document.getElementById('setup-section');
 const selectionSection = document.getElementById('selection-section');
 const resultsSection = document.getElementById('results-section');
