@@ -14,8 +14,8 @@
 
 <body>
     <div id="app" class="container">
-        <header style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem;">
-            <div style="flex: 1;">
+        <header class="main-header">
+            <div class="header-content">
                 <div class="hubspot-logo">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                         <path
@@ -24,11 +24,10 @@
                     REPORT HUNTER
                 </div>
                 <h1>Generate Custom HubSpot Reports with AI</h1>
-                <p style="color: var(--text-dim);">Connect your portal, pick your properties, and let
+                <p class="subtitle">Connect your portal, pick your properties, and let
                     AI hunt down the best reporting insights for you.</p>
             </div>
-            <button id="theme-toggle" class="btn"
-                style="padding: 0.5rem 1rem; display: flex; align-items: center; gap: 0.5rem; background: var(--card-bg); border: 1px solid var(--border-color);">
+            <button id="theme-toggle" class="btn theme-toggle">
                 <span id="theme-toggle-icon">☀️</span>
                 <span id="theme-toggle-text">Light Mode</span>
             </button>

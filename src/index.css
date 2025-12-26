@@ -45,6 +45,29 @@ body {
   padding: 2rem;
 }
 
+.main-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 3rem;
+  gap: 2rem;
+}
+
+.header-content {
+  flex: 1;
+}
+
+.subtitle {
+  color: var(--text-dim);
+  font-size: 1.1rem;
+  max-width: 800px;
+}
+
+.theme-toggle {
+  padding: 0.5rem 1rem !important;
+  font-size: 0.9rem;
+}
+
 .glass-card {
   background: var(--card-bg);
   border: 1px solid var(--border-color);
@@ -62,7 +85,7 @@ body {
 h1,
 h2,
 h3 {
-  color: #fff;
+  color: var(--text-main);
   margin-top: 0;
 }
 
@@ -98,11 +121,16 @@ input[type="password"],
 select {
   width: 100%;
   padding: 0.75rem;
-  background: #0d1117;
+  background: var(--bg-color);
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  color: #fff;
+  color: var(--text-main);
   transition: border-color 0.2s;
+}
+
+::placeholder {
+  color: var(--text-dim);
+  opacity: 0.8;
 }
 
 input:focus {
@@ -113,13 +141,15 @@ input:focus {
 .btn {
   padding: 0.75rem 1.5rem;
   border-radius: 6px;
-  border: none;
+  border: 1px solid var(--border-color);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  background: var(--card-bg);
+  color: var(--text-main);
 }
 
 .btn-primary {
@@ -152,7 +182,7 @@ input:focus {
   border: 1px solid var(--border-color);
   border-radius: 6px;
   padding: 0.5rem;
-  background: #0d1117;
+  background: var(--bg-color);
 }
 
 .property-item {
@@ -183,7 +213,7 @@ input:focus {
 }
 
 .report-suggestion {
-  background: #1c2128;
+  background: var(--card-bg);
   border: 1px solid var(--border-color);
   padding: 1.5rem;
   border-radius: 8px;
@@ -252,16 +282,17 @@ input:focus {
 
 .step-num {
   background: var(--primary);
-  color: #fff;
-  width: 28px;
-  height: 28px;
+  color: var(--btn-text);
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
-  font-size: 0.9rem;
+  font-weight: 900;
+  font-size: 1rem;
   flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .step-content strong {
