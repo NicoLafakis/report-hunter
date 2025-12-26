@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HubSpot Report Hunter | AI-Powered Custom Reporting</title>
+    <meta name="description"
+        content="Discover and create HubSpot custom reports using AI. Select your properties and let OpenAI suggest the best reporting configurations.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div id="app" class="container">
+        <header>
+            <div class="hubspot-logo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                        d="M18.9,10.1c-1.2,0-2.1,0.9-2.1,2.1c0,0.2,0,0.4,0.1,0.6l-3,1.7c-0.4-0.4-1-0.7-1.7-0.7c-0.1,0-0.2,0-0.3,0l0-4.1 c0.8-0.3,1.4-1.1,1.4-2c0-1.2-1-2.2-2.2-2.2S8.9,6.5,8.9,7.7c0,0.9,0.5,1.7,1.3,2l0,4.1c-0.1,0-0.2,0-0.3,0c-0.7,0-1.3,0.3-1.7,0.7 l-3-1.7c0.1-0.2,0.1-0.4,0.1-0.6c0-1.2-1-2.1-2.1-2.1S1.1,11,1.1,12.2s1,2.1,2.1,2.1c0.7,0,1.3-0.3,1.7-0.8l3,1.7 c-0.1,0.2-0.1,0.4-0.1,0.6c0,1.2,1,2.2,2.2,2.2s2.2-1,2.2-2.2c0-0.2,0-0.4-0.1-0.6l3-1.7c0.4,0.5,1.1,0.8,1.8,0.8 c1.2,0,2.1-1,2.1-2.2S20.1,10.1,18.9,10.1z" />
+                </svg>
+                REPORT HUNTER
+            </div>
+            <h1>Generate Custom HubSpot Reports with AI</h1>
+            <p style="color: var(--text-dim); margin-bottom: 2rem;">Connect your portal, pick your properties, and let
+                AI hunt down the best reporting insights for you.</p>
+        </header>
+
+        <!-- Setup Phase -->
+        <section id="setup-section" class="glass-card">
+            <h3>Portal Configuration</h3>
+            <div class="form-group">
+                <label for="hubspot-token">HubSpot Private App Access Token</label>
+                <input type="password" id="hubspot-token" placeholder="pat-na1-xxxx...">
+            </div>
+            <div class="form-group hidden">
+                <label for="openai-key">OpenAI API Key (Optional if server-side configured)</label>
+                <input type="password" id="openai-key" placeholder="sk-xxxx...">
+            </div>
+            <button id="connect-btn" class="btn btn-primary">
+                Connect to HubSpot
+            </button>
+        </section>
+
+        <!-- Object & Property Selection Phase -->
+        <section id="selection-section" class="hidden">
+            <div class="grid">
+                <div class="glass-card">
+                    <h3>1. Select Objects</h3>
+                    <div id="object-list" class="form-group">
+                        <!-- Populated dynamiclly -->
+                    </div>
+                    <button id="fetch-properties-btn" class="btn btn-primary" disabled>
+                        Fetch Properties
+                    </button>
+                </div>
+
+                <div class="glass-card">
+                    <h3>2. Select Properties</h3>
+                    <div class="form-group" style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="property-search" placeholder="Filter properties by name..."
+                            style="flex: 2;">
+                        <select id="group-filter" style="flex: 1;">
+                            <option value="">All Groups</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 1rem; display: flex; justify-content: flex-end; gap: 0.5rem;">
+                        <button id="clear-all-selected" class="btn"
+                            style="padding: 0.4rem 0.8rem; font-size: 0.8rem; background: rgba(255,122,89,0.1); border: 1px solid rgba(255,122,89,0.3); color: var(--primary);">
+                            Clear All
+                        </button>
+                        <button id="select-all-visible" class="btn"
+                            style="padding: 0.4rem 0.8rem; font-size: 0.8rem; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color);">
+                            Select All Visible
+                        </button>
+                    </div>
+                    <div id="property-list-container" class="property-list">
+                        <!-- Populated dynamically -->
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <span id="selected-count" class="selected-badge">0 properties selected</span>
+                    </div>
+                    <button id="start-journey-btn" class="btn btn-primary" style="margin-top: 1.5rem;" disabled>
+                        <span>🎬 Start Reporting Journey</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Story Phase (COYA) -->
+        <section id="story-section" class="hidden" style="margin-top: 2rem;">
+            <div class="glass-card">
+                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+                    <span style="font-size: 2rem;">🗺️</span>
+                    <div>
+                        <h2 style="margin: 0;">Choose Your Reporting Path</h2>
+                        <p style="color: var(--text-dim); margin: 0;">Tell a story with your data. Point and click to
+                            define your audience and goals.</p>
+                    </div>
+                </div>
+
+                <div id="story-steps-container">
+                    <!-- Dynamic story choices like Audience, Goal, Timeframe -->
+                </div>
+
+                <div id="story-final-btn-container" class="hidden"
+                    style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+                    <button id="get-suggestions-btn" class="btn btn-primary"
+                        style="width: 100%; justify-content: center; font-size: 1.1rem; padding: 1rem;">
+                        <span>🪄 Hunt for up to 20 Story-Driven Reports</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Result Phase -->
+        <section id="results-section" class="hidden" style="margin-top: 2rem;">
+            <div class="glass-card">
+                <h2>AI Suggested Reports</h2>
+                <div id="suggestions-container">
+                    <!-- Suggested report cards -->
+                </div>
+            </div>
+        </section>
+
+        <div id="loader" class="hidden"
+            style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem;">
+            <div class="loading-spinner"></div>
+            <p id="loader-text">Analyzing Properties...</p>
+        </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>
