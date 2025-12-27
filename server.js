@@ -9,20 +9,16 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
+const pgSession = require('connect-pg-simple')(session);
 const svgCaptcha = require('svg-captcha');
 const path = require('path');
 
 const app = express();
+app.set('trust proxy', 1); // Required for secure cookies on Railway
+
 app.use(cors({ origin: true, credentials: true })); // Allow cookies for JWT
 app.use(express.json());
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'dist')));
-app.use(session({
-  secret: process.env.JWT_SECRET || 'captcha-session-secret',
-  resave: false,
-  saveUninitialized: true,
-  cookie: { secure: false, maxAge: 600000 } // 10 mins
-}));
 
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-12345';
@@ -33,6 +29,28 @@ const pool = new Pool({
   connectionString: DB_URL,
   ssl: { rejectUnauthorized: false } // Required for some hosted platforms like Railway
 });
+
+// Use Postgres for session storage to survive restarts on Railway
+app.use(session({
+  store: new pgSession({
+    pool: pool,
+    tableName: 'sessions',
+    createTableIfMissing: true
+  }),
+  name: 'report_hunter_sid',
+  secret: JWT_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  rolling: true,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 1000 // 1 hour
+  }
+}));
+
+app.use(express.static(path.join(__dirname, 'dist')));
 
 // Initialize Database Tables
 async function initDb() {
@@ -80,13 +98,24 @@ app.get('/api/auth/captcha', (req, res) => {
     color: true,
     background: '#f0f0f0'
   });
+
   req.session.captcha = captcha.text.toLowerCase();
-  res.type('svg');
-  res.status(200).send(captcha.data);
+
+  // Explicitly save the session before sending response
+  req.session.save((err) => {
+    if (err) {
+      console.error('Session save error:', err);
+      return res.status(500).send('Session error');
+    }
+    res.type('svg');
+    res.status(200).send(captcha.data);
+  });
 });
 
 app.post('/api/auth/signup', async (req, res) => {
   const { email, password, confirmPassword, captcha } = req.body;
+
+  console.log(`Signup attempt: ${email}, Captcha Input: ${captcha}, Session Captcha: ${req.session.captcha}`);
 
   if (!email || !password || !confirmPassword || !captcha) {
     return res.status(400).json({ error: 'All fields are required' });
@@ -97,7 +126,7 @@ app.post('/api/auth/signup', async (req, res) => {
   }
 
   if (!req.session.captcha || captcha.toLowerCase() !== req.session.captcha) {
-    return res.status(400).json({ error: 'Invalid captcha' });
+    return res.status(400).json({ error: 'Invalid captcha. Please try again.' });
   }
 
   // Clear captcha after use
