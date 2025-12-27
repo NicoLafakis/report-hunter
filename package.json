@@ -8,10 +8,14 @@
   "dependencies": {
     "@hubspot/api-client": "^13.4.0",
     "axios": "^1.13.2",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
     "openai": "^6.15.0",
+    "pg": "^8.16.3",
     "vue": "^3.5.26"
   },
   "devDependencies": {
