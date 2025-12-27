@@ -8,11 +8,19 @@ const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
+const session = require('express-session');
+const svgCaptcha = require('svg-captcha');
 
 const app = express();
 app.use(cors({ origin: true, credentials: true })); // Allow cookies for JWT
 app.use(express.json());
 app.use(cookieParser());
+app.use(session({
+  secret: process.env.JWT_SECRET || 'captcha-session-secret',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: false, maxAge: 600000 } // 10 mins
+}));
 
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-12345';
@@ -63,9 +71,35 @@ const authenticateToken = (req, res, next) => {
 
 // --- AUTH ENDPOINTS ---
 
+app.get('/api/auth/captcha', (req, res) => {
+  const captcha = svgCaptcha.create({
+    size: 4,
+    noise: 2,
+    color: true,
+    background: '#f0f0f0'
+  });
+  req.session.captcha = captcha.text.toLowerCase();
+  res.type('svg');
+  res.status(200).send(captcha.data);
+});
+
 app.post('/api/auth/signup', async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
+  const { email, password, confirmPassword, captcha } = req.body;
+
+  if (!email || !password || !confirmPassword || !captcha) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+
+  if (password !== confirmPassword) {
+    return res.status(400).json({ error: 'Passwords do not match' });
+  }
+
+  if (!req.session.captcha || captcha.toLowerCase() !== req.session.captcha) {
+    return res.status(400).json({ error: 'Invalid captcha' });
+  }
+
+  // Clear captcha after use
+  req.session.captcha = null;
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -139,7 +173,7 @@ app.post('/api/user/state', authenticateToken, async (req, res) => {
 
 app.post('/api/user/reset', authenticateToken, async (req, res) => {
   try {
-    await pool.query('UPDATE users SET current_state = NULL WHERE id = $2', [req.user.id]);
+    await pool.query('UPDATE users SET current_state = NULL WHERE id = $1', [req.user.id]);
     res.json({ message: 'State reset' });
   } catch (err) {
     res.status(500).json({ error: err.message });

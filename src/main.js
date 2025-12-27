@@ -110,10 +110,25 @@ function restoreState(state) {
 }
 
 // UI Event Listeners for Auth
+async function loadCaptcha() {
+    const container = document.getElementById('captcha-container');
+    container.innerHTML = 'Loading...';
+    try {
+        const res = await fetch(`${API_BASE}/api/auth/captcha?t=${Date.now()}`, { credentials: 'include' });
+        const svg = await res.text();
+        container.innerHTML = svg;
+    } catch (err) {
+        container.innerHTML = '<small style="color:red">Failed to load</small>';
+    }
+}
+
+document.getElementById('captcha-container').onclick = loadCaptcha;
+
 document.getElementById('show-signup').onclick = (e) => {
     e.preventDefault();
     document.getElementById('login-form').classList.add('hidden');
     document.getElementById('signup-form').classList.remove('hidden');
+    loadCaptcha();
 };
 document.getElementById('show-login').onclick = (e) => {
     e.preventDefault();
@@ -142,10 +157,21 @@ document.getElementById('login-btn').onclick = async () => {
 document.getElementById('signup-btn').onclick = async () => {
     const email = document.getElementById('signup-email').value;
     const password = document.getElementById('signup-password').value;
+    const confirmPassword = document.getElementById('signup-confirm-password').value;
+    const captcha = document.getElementById('signup-captcha').value;
+
+    if (!email || !password || !confirmPassword || !captcha) {
+        return alert('Please fill in all fields');
+    }
+
+    if (password !== confirmPassword) {
+        return alert('Passwords do not match');
+    }
+
     const res = await fetch(`${API_BASE}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, confirmPassword, captcha }),
         credentials: 'include'
     });
     const data = await res.json();
@@ -154,6 +180,7 @@ document.getElementById('signup-btn').onclick = async () => {
         onLoginSuccess();
     } else {
         alert(data.error);
+        loadCaptcha(); // Refresh captcha on failure
     }
 };
 
