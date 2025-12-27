@@ -10,11 +10,13 @@ const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
 const svgCaptcha = require('svg-captcha');
+const path = require('path');
 
 const app = express();
 app.use(cors({ origin: true, credentials: true })); // Allow cookies for JWT
 app.use(express.json());
 app.use(cookieParser());
+app.use(express.static(path.join(__dirname, 'dist')));
 app.use(session({
   secret: process.env.JWT_SECRET || 'captcha-session-secret',
   resave: false,
