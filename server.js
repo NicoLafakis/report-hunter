@@ -111,9 +111,10 @@ app.post('/api/ai/story-options', async (req, res) => {
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-4.1-mini-2025-04-14',
       messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' }
+      response_format: { type: 'json_object' },
+      temperature: 0.2
     });
     const content = JSON.parse(response.choices[0].message.content);
     // Support either a root array or a named key
@@ -179,9 +180,10 @@ app.post('/api/ai/suggest', async (req, res) => {
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-4.1-mini-2025-04-14',
       messages: [{ role: 'system', content: 'You are a HubSpot API expert.' }, { role: 'user', content: prompt }],
-      response_format: { type: 'json_object' }
+      response_format: { type: 'json_object' },
+      temperature: 0.2
     });
 
     const content = JSON.parse(response.choices[0].message.content);
