@@ -243,8 +243,11 @@ async function fetchStoryStep(step) {
                 previousChoices: storyPath
             })
         });
-        const options = await response.json();
-        renderStoryStep(step, options);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Server error');
+        if (!Array.isArray(data)) throw new Error('Expected an array of options but received: ' + JSON.stringify(data));
+
+        renderStoryStep(step, data);
     } catch (err) {
         alert('Failed to fetch story options: ' + err.message);
     } finally {
@@ -314,6 +317,9 @@ document.getElementById('get-suggestions-btn').addEventListener('click', async (
             })
         });
         const suggestions = await response.json();
+        if (!response.ok) throw new Error(suggestions.error || 'Server error');
+        if (!Array.isArray(suggestions)) throw new Error('Expected an array of suggestions');
+
         renderSuggestions(suggestions);
         const resultsSection = document.getElementById('results-section');
         resultsSection.classList.remove('hidden');

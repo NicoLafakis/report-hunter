@@ -103,7 +103,7 @@ app.post('/api/ai/story-options', async (req, res) => {
     Current Choice Step: ${currentStep}
     Task: ${steps[currentStep]}
     
-    Return ONLY a JSON array of 3-4 objects, each with:
+    Return ONLY a JSON object with an "options" key containing an array of 3-4 objects, each with:
     "id": unique slug,
     "label": human readable title,
     "description": brief context of why this path matters.
@@ -117,8 +117,8 @@ app.post('/api/ai/story-options', async (req, res) => {
       temperature: 0.2
     });
     const content = JSON.parse(response.choices[0].message.content);
-    // Support either a root array or a named key
-    const options = Array.isArray(content) ? content : (content.options || Object.values(content)[0]);
+    // Standardize output to always be an array
+    const options = content.options || (Array.isArray(content) ? content : Object.values(content)[0]) || [];
     res.json(options);
   } catch (error) {
     res.status(500).json({ error: error.message });
