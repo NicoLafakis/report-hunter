@@ -13,12 +13,8 @@ let visibleProperties = []; // [{ objectType, name, label }]
 let businessProfile = null;
 let suggestions = []; // Store generated suggestions for state persistence
 
-let storyPath = {
-    business_focus: null,
-    metric_type: null,
-    comparison_dimension: null,
-    output_format: null
-};
+let currentProposal = null; // Store the active dashboard proposal
+let isRefining = false; // Loading state for refinement
 
 // --- AUTH & STATE LOGIC ---
 
@@ -64,7 +60,7 @@ async function saveState() {
         selectedObjects,
         selectedProperties,
         businessProfile,
-        storyPath,
+        currentProposal,
         suggestions
     };
     await fetch(`${API_BASE}/api/user/state`, {
@@ -81,7 +77,7 @@ function restoreState(state) {
     selectedObjects = state.selectedObjects || [];
     selectedProperties = state.selectedProperties || [];
     businessProfile = state.businessProfile || null;
-    storyPath = state.storyPath || { business_focus: null, metric_type: null, comparison_dimension: null, output_format: null };
+    currentProposal = state.currentProposal || null;
     suggestions = state.suggestions || [];
 
     if (hsToken) {
@@ -229,31 +225,7 @@ document.getElementById('reset-session-btn').onclick = async () => {
     }
 };
 
-// Store generated suggestions for state persistence
-const storyStepMeta = {
-    business_focus: {
-        title: 'Business Focus',
-        emoji: '🎯',
-        description: 'What area of the business should we analyze?'
-    },
-    metric_type: {
-        title: 'Metric Type',
-        emoji: '📊',
-        description: 'What kind of measurements make sense here?'
-    },
-    comparison_dimension: {
-        title: 'Comparison Dimension',
-        emoji: '🔀',
-        description: 'How should we slice and segment the data?'
-    },
-    output_format: {
-        title: 'Output Format',
-        emoji: '📋',
-        description: 'How should we present the insights?'
-    }
-};
-
-const storyStepOrder = ['business_focus', 'metric_type', 'comparison_dimension', 'output_format'];
+// --- DASHBOARD PROPOSAL LOGIC ---
 
 // Theme Toggle Logic
 const themeToggle = document.getElementById('theme-toggle');
@@ -565,166 +537,187 @@ function displayBusinessProfileSummary(profile) {
     `;
 }
 
-// 4. Start Journey - Now includes profile inference
+// 4. Start Journey - Now includes profile inference + Dashboard Proposal
 document.getElementById('start-journey-btn').addEventListener('click', async () => {
     document.getElementById('story-section').classList.remove('hidden');
     document.getElementById('story-section').scrollIntoView({ behavior: 'smooth' });
 
-    // Reset story path
-    storyPath = {
-        business_focus: null,
-        metric_type: null,
-        comparison_dimension: null,
-        output_format: null
-    };
+    // Reset
+    currentProposal = null;
 
-    // First, infer business profile
-    await inferBusinessProfile();
+    // First, infer business profile if needed
+    if (!businessProfile) {
+        await inferBusinessProfile();
+    }
 
-    // Then start the COYA journey
-    fetchStoryStep('business_focus');
+    // Then start the Proposal Flow
+    fetchDashboardProposal();
 });
 
-// 5. UPDATED: Story Step Fetching
-async function fetchStoryStep(step) {
+// 5. NEW: Fetch Dashboard Proposal
+async function fetchDashboardProposal() {
     const container = document.getElementById('story-steps-container');
-    const meta = storyStepMeta[step];
-    showLoader(`${meta.emoji} ${meta.description}`);
+    showLoader('🧙‍♂️ Analyzing your data to propose the perfect dashboard...');
 
     try {
-        const response = await fetch(`${API_BASE}/api/ai/story-options`, {
+        const response = await fetch(`${API_BASE}/api/ai/propose-dashboard`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 openaiKey: openAIKey,
                 properties: selectedProperties,
                 selectedObjects: selectedObjects,
-                currentStep: step,
-                previousChoices: storyPath,
                 businessProfile: businessProfile
             }),
             credentials: 'include'
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Server error');
-        if (!Array.isArray(data)) throw new Error('Expected an array of options but received: ' + JSON.stringify(data));
 
-        renderStoryStep(step, data);
+        currentProposal = data;
+        renderDashboardProposal();
+        saveState();
     } catch (err) {
-        alert('Failed to fetch story options: ' + err.message);
+        alert('Failed to propose dashboard: ' + err.message);
     } finally {
         hideLoader();
     }
 }
 
-// 6. UPDATED: Render Story Step with enhanced UI
-function renderStoryStep(step, options) {
+// 6. NEW: Render Dashboard Proposal (Consultant Card)
+function renderDashboardProposal() {
     const container = document.getElementById('story-steps-container');
-    const meta = storyStepMeta[step];
-    const stepIndex = storyStepOrder.indexOf(step);
+    const { role, dashboard_title, _description, proposed_reports } = currentProposal;
 
-    // If this is the first step after profile, keep the profile summary
-    // Otherwise, we're adding to existing steps
-    if (step === 'business_focus') {
-        // Keep any existing profile summary, just add after it
-        const existingProfile = container.querySelector('.glass-card');
-        if (existingProfile) {
-            // Profile exists, add after it
-        } else {
-            // No profile, start fresh
-        }
-    }
+    // Clear previous content (except profile summary if we kept it separte, but here we overwrite for simplicity or append)
+    // Actually, let's keep the business profile visible if it's there
+    const profileCard = container.querySelector('.glass-card'); // The profile summary
+    container.innerHTML = '';
+    if (profileCard) container.appendChild(profileCard);
 
-    // Remove any steps after this one (in case user is re-selecting)
-    const existingSteps = container.querySelectorAll('.story-step');
-    existingSteps.forEach(el => {
-        const elStep = el.dataset.step;
-        if (storyStepOrder.indexOf(elStep) >= stepIndex) {
-            el.remove();
-        }
-    });
+    const proposalDiv = document.createElement('div');
+    proposalDiv.className = 'dashboard-proposal fade-in';
 
-    // Clear selections for this step and all after
-    storyStepOrder.slice(stepIndex).forEach(s => {
-        storyPath[s] = null;
-    });
-
-    // Hide the final button
-    document.getElementById('story-final-btn-container').classList.add('hidden');
-
-    const stepDiv = document.createElement('div');
-    stepDiv.className = 'story-step';
-    stepDiv.dataset.step = step;
-
-    stepDiv.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
-            <div style="background: var(--primary); color: var(--btn-text); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem;">
-                ${stepIndex + 1}
+    proposalDiv.innerHTML = `
+        <div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; margin-top: 2rem;">
+            <!-- Header (Role) -->
+            <div style="background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.1), rgba(var(--primary-rgb), 0.02)); padding: 1.5rem; border-bottom: 1px solid var(--border-color);">
+                <div style="display: flex; align-items: flex-start; gap: 1rem;">
+                    <div style="background: var(--primary); color: white; width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);">
+                        🎩
+                    </div>
+                    <div>
+                        <div style="color: var(--primary); font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.25rem;">
+                            HubSpot AI Consultant
+                        </div>
+                        <h2 style="margin: 0; font-size: 1.5rem;">${role}</h2>
+                        <p style="margin: 0.5rem 0 0; color: var(--text-dim); max-width: 600px;">
+                            "Based on your data, I recommend building a <strong>${dashboard_title}</strong>. ${currentProposal.dashboard_description}"
+                        </p>
+                    </div>
+                </div>
             </div>
-            <div>
-                <h4 style="margin: 0; color: var(--primary);">${meta.title}</h4>
-                <small style="color: var(--text-dim);">${meta.description}</small>
+
+            <!-- Report List -->
+            <div style="padding: 1.5rem;">
+                <h3 style="margin: 0 0 1rem; font-size: 1rem; color: var(--text-dim);">PROPOSED REPORTS (${proposed_reports.length})</h3>
+                
+                <div class="report-list-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                    ${proposed_reports.map((report, idx) => `
+                        <label class="report-checkbox-card" style="display: flex; gap: 0.75rem; padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                            <input type="checkbox" checked data-idx="${idx}" class="report-selection-cb" style="margin-top: 0.25rem;">
+                            <div>
+                                <strong style="display: block; color: var(--text-color); margin-bottom: 0.25rem;">${report.title}</strong>
+                                <small style="color: var(--text-dim); display: block; line-height: 1.4;">${report.description}</small>
+                                <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem;">
+                                    <span style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); font-size: 0.65rem; padding: 2px 6px; border-radius: 4px;">${report.visual_style}</span>
+                                    <span style="background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-dim); font-size: 0.65rem; padding: 2px 6px; border-radius: 4px;">${report.metric_type}</span>
+                                </div>
+                            </div>
+                        </label>
+                    `).join('')}
+                </div>
+
+                <!-- Action Bar -->
+                <div style="display: flex; flex-direction: column; gap: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                    <!-- Refinement Input -->
+                    <div id="refinement-area">
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" id="refinement-input" placeholder="Feedback? e.g., 'Remove revenue reports' or 'Focus more on marketing'" 
+                                style="flex: 1; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-color); color: var(--text-color);">
+                            <button id="refine-btn" class="secondary-btn" style="white-space: nowrap;">
+                                Refine Proposal ✨
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Approve Button -->
+                    <button id="approve-build-btn" class="primary-btn" style="width: 100%; justify-content: center; padding: 1rem; font-size: 1.1rem;">
+                        Looks Good, Generate Guides 🚀
+                    </button>
+                </div>
             </div>
-        </div>
-        <div class="choice-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
-            ${options.map(opt => `
-                <button class="choice-card" data-step="${step}" data-id="${opt.id}" data-label="${opt.label}">
-                    <strong style="display: block; margin-bottom: 0.3rem;">${opt.label}</strong>
-                    <p style="font-size: 0.8rem; margin: 0; color: var(--text-dim);">${opt.description}</p>
-                    ${opt.grounding_properties ? `
-                        <div style="margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.25rem;">
-                            ${opt.grounding_properties.slice(0, 3).map(p => `
-                                <span style="background: rgba(var(--primary-rgb), 0.15); color: var(--primary); padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.65rem;">${p}</span>
-                            `).join('')}
-                        </div>
-                    ` : ''}
-                    ${opt.example_question ? `
-                        <div style="margin-top: 0.5rem; font-style: italic; font-size: 0.75rem; color: var(--text-dim);">
-                            "${opt.example_question}"
-                        </div>
-                    ` : ''}
-                    ${opt.example_report ? `
-                        <div style="margin-top: 0.5rem; font-style: italic; font-size: 0.75rem; color: var(--text-dim);">
-                            → ${opt.example_report}
-                        </div>
-                    ` : ''}
-                </button>
-            `).join('')}
         </div>
     `;
 
-    container.appendChild(stepDiv);
+    container.appendChild(proposalDiv);
 
-    // Attach click handlers
-    stepDiv.querySelectorAll('.choice-card').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const card = e.currentTarget;
-            const chosenId = card.dataset.id;
-            const chosenLabel = card.dataset.label;
+    // Event Listeners
+    document.getElementById('refine-btn').onclick = handleRefinement;
 
-            // Highlight choice
-            stepDiv.querySelectorAll('.choice-card').forEach(c => c.classList.remove('active'));
-            card.classList.add('active');
+    document.getElementById('approve-build-btn').onclick = handleApproval;
 
-            storyPath[step] = chosenLabel;
-            saveState();
-
-            // Determine next step
-            const nextStepIndex = stepIndex + 1;
-            if (nextStepIndex < storyStepOrder.length) {
-                fetchStoryStep(storyStepOrder[nextStepIndex]);
-            } else {
-                // All steps complete - show final button
-                document.getElementById('story-final-btn-container').classList.remove('hidden');
-                document.getElementById('story-final-btn-container').scrollIntoView({ behavior: 'smooth' });
-            }
+    // Styling for checkbox cards
+    document.querySelectorAll('.report-selection-cb').forEach(cb => {
+        cb.addEventListener('change', (e) => {
+            const card = e.target.closest('.report-checkbox-card');
+            if (e.target.checked) card.style.opacity = '1';
+            else card.style.opacity = '0.6';
         });
     });
 }
 
-// 7. Final Hunt - Now includes all new context
-document.getElementById('get-suggestions-btn').addEventListener('click', async () => {
-    showLoader('🔍 AI is hunting for story-driven report configurations...');
+async function handleRefinement() {
+    const input = document.getElementById('refinement-input');
+    const feedback = input.value.trim();
+    if (!feedback) return;
+
+    showLoader('✨ Refining proposal based on your feedback...');
+
+    try {
+        const response = await fetch(`${API_BASE}/api/ai/refine-proposal`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                openaiKey: openAIKey,
+                currentProposal: currentProposal, // Pass full object including reports
+                userFeedback: feedback,
+                properties: selectedProperties
+            }),
+            credentials: 'include'
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Server error');
+
+        currentProposal = data;
+        renderDashboardProposal();
+        saveState();
+    } catch (err) {
+        alert('Refinement failed: ' + err.message);
+    } finally {
+        hideLoader();
+    }
+}
+
+async function handleApproval() {
+    // Filter out unchecked reports
+    const checkedIndices = Array.from(document.querySelectorAll('.report-selection-cb:checked')).map(cb => parseInt(cb.dataset.idx));
+    const approvedReports = currentProposal.proposed_reports.filter((_, idx) => checkedIndices.includes(idx));
+
+    if (approvedReports.length === 0) return alert('Please select at least one report.');
+
+    showLoader('🔨 Building step-by-step guides for your dashboard...');
+
     try {
         const response = await fetch(`${API_BASE}/api/ai/suggest`, {
             method: 'POST',
@@ -733,27 +726,32 @@ document.getElementById('get-suggestions-btn').addEventListener('click', async (
                 openaiKey: openAIKey,
                 properties: selectedProperties,
                 selectedObjects: selectedObjects,
-                storyContext: storyPath,
+                approvedReports: approvedReports, // SENDING APPROVED LIST instead of Story Context
                 businessProfile: businessProfile
             }),
             credentials: 'include'
         });
         const data = await response.json();
-        suggestions = data; // Save to global for state persistence
-        if (!response.ok) throw new Error(suggestions.error || 'Server error');
-        if (!Array.isArray(suggestions)) throw new Error('Expected an array of suggestions');
 
+        // Transform for the existing renderSuggestions function
+        // (Assuming data is the array of full report objects)
+        suggestions = data;
+
+        // Hide story section and show results
         renderSuggestions(suggestions);
-        const resultsSection = document.getElementById('results-section');
-        resultsSection.classList.remove('hidden');
-        resultsSection.scrollIntoView({ behavior: 'smooth' });
+        document.getElementById('results-section').classList.remove('hidden');
+        document.getElementById('results-section').scrollIntoView({ behavior: 'smooth' });
         saveState();
+
     } catch (err) {
-        alert('AI Suggestion failed: ' + err.message);
+        alert('Generation failed: ' + err.message);
     } finally {
         hideLoader();
     }
-});
+}
+
+// 7. Final Hunt - DEPRECATED in Role-Based Flow (Handled by handleApproval)
+// document.getElementById('get-suggestions-btn').addEventListener('click', async () => { ... });
 
 // 8. UPDATED: Render Suggestions with enhanced structure (Accordion Mode)
 function renderSuggestions(suggestions) {

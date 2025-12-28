@@ -374,9 +374,9 @@ Return ONLY a JSON object with this structure:
   }
 });
 
-// 4. REVISED: AI Story Options (COYA) - Property-Grounded
-app.post('/api/ai/story-options', async (req, res) => {
-  const { openaiKey, properties, selectedObjects, currentStep, previousChoices, businessProfile } = req.body;
+// 4. NEW: Dashboard Proposal (Role-Based)
+app.post('/api/ai/propose-dashboard', async (req, res) => {
+  const { openaiKey, properties, selectedObjects, businessProfile } = req.body;
   const apiKey = openaiKey || process.env.OPENAI_API_KEY;
   if (!apiKey) return res.status(400).json({ error: 'OpenAI API Key is required' });
 
@@ -388,295 +388,164 @@ app.post('/api/ai/story-options', async (req, res) => {
     ? JSON.stringify(businessProfile.inferred_profile, null, 2)
     : 'No profile inference available';
 
-  const stepPrompts = {
-    // STEP 1: Business Focus - What area of the business to analyze
-    business_focus: `
-## STEP 1: BUSINESS FOCUS DISCOVERY
-
-You are helping a user who is UNFAMILIAR with this company understand what reports are possible based solely on property names.
-
-### INFERRED BUSINESS PROFILE
-${profileContext}
-
-### AVAILABLE OBJECTS
-${selectedObjects.join(', ')}
-
-### AVAILABLE PROPERTIES
-${propertyList}
-
-### YOUR TASK
-Based on the property names, suggest 4 distinct BUSINESS FOCUS areas that these properties could support reporting on. Each option should represent a different lens through which this company might analyze their data.
-
-DO NOT suggest generic options. Each option must be grounded in SPECIFIC PROPERTIES you see in the list.
-
-For each option, explain:
-- What properties make this focus area viable
-- What kind of insights this focus would reveal
-- Who in the organization would care about this
-
-Return JSON with "options" array containing objects with:
-- "id": unique slug (lowercase, hyphenated)
-- "label": business focus area name (be specific to what properties allow)
-- "description": 1-2 sentences explaining what this focus reveals and its business value
-- "grounding_properties": array of 3-5 property names (use the actual property names, not labels) that enable this focus
-- "example_question": one specific business question this focus could answer
-`,
-
-    // STEP 2: Metric Type - What kind of measurements to make
-    metric_type: `
-## STEP 2: METRIC TYPE SELECTION
-
-### PREVIOUSLY SELECTED
-Business Focus: ${previousChoices?.business_focus}
-
-### INFERRED BUSINESS PROFILE
-${profileContext}
-
-### AVAILABLE PROPERTIES
-${propertyList}
-
-### YOUR TASK
-Given the selected business focus "${previousChoices?.business_focus}", what TYPES OF METRICS can actually be reported on with these properties?
-
-Analyze the properties to determine which of these metric categories are ACTUALLY supported:
-- **Volume Metrics**: Counts, totals (requires countable entities)
-- **Velocity Metrics**: Speed, time-to-X (requires timestamp properties)
-- **Conversion Metrics**: Rates, ratios (requires stage/status properties with progression)
-- **Value Metrics**: Revenue, amounts (requires currency/number properties)
-- **Distribution Metrics**: Breakdown by category (requires picklist/enum properties)
-- **Trend Metrics**: Change over time (requires date properties)
-- **Comparison Metrics**: Side-by-side analysis (requires grouping properties like owner, team, region)
-
-ONLY suggest metric types that the ACTUAL PROPERTIES can support. Do not suggest metrics that require properties not in the list.
-
-Return JSON with "options" array containing objects with:
-- "id": unique slug
-- "label": metric type name
-- "description": what this metric type reveals in context of their business focus "${previousChoices?.business_focus}"
-- "viable_because": which specific property names (not labels) enable this metric type
-- "example_report": one concrete report title using this metric type for the selected focus
-`,
-
-    // STEP 3: Comparison Dimension - How to slice the data
-    comparison_dimension: `
-## STEP 3: COMPARISON DIMENSION SELECTION
-
-### PREVIOUSLY SELECTED
-Business Focus: ${previousChoices?.business_focus}
-Metric Type: ${previousChoices?.metric_type}
-
-### AVAILABLE PROPERTIES
-${propertyList}
-
-### YOUR TASK
-Determine what COMPARISON DIMENSIONS are possible with these properties. A comparison dimension is how the user will slice, segment, or group their data to surface insights.
-
-Look for properties that could serve as:
-- **Time-based**: date properties for trending (month-over-month, quarter-over-quarter, YoY)
-- **Categorical**: picklists, dropdowns for segmentation (by region, by product, by source, by type)
-- **Hierarchical**: owner, team, business unit properties for organizational views
-- **Lifecycle/Stage**: stage properties for funnel or progression analysis
-- **Custom Segments**: boolean or score properties for cohort analysis
-
-Only suggest dimensions that ACTUALLY EXIST in the properties. Be specific about which property enables each dimension.
-
-Return JSON with "options" array containing objects with:
-- "id": unique slug
-- "label": comparison dimension name (e.g., "By Sales Rep", "Over Time (Monthly)", "By Deal Source")
-- "description": how this dimension adds insight when combined with "${previousChoices?.metric_type}" metrics for "${previousChoices?.business_focus}"
-- "property_used": the specific property NAME (not label) that enables this comparison
-- "insight_example": one specific insight that comparing by this dimension would reveal
-`,
-
-    // STEP 4: Output Format - How to present the reports
-    output_format: `
-## STEP 4: OUTPUT FORMAT & DEPTH
-
-### PREVIOUSLY SELECTED
-Business Focus: ${previousChoices?.business_focus}
-Metric Type: ${previousChoices?.metric_type}
-Comparison Dimension: ${previousChoices?.comparison_dimension}
-
-### YOUR TASK
-Based on all previous selections, suggest appropriate OUTPUT FORMATS and DEPTH LEVELS for the reports.
-
-Consider:
-- The complexity of the data relationships in their selections
-- Whether they need summary views vs. detailed drill-downs
-- The likely audience for these reports (executives vs. managers vs. individual contributors)
-- HubSpot's available visualization types
-
-Return JSON with "options" array containing objects with:
-- "id": unique slug
-- "label": format/depth name (e.g., "Executive Snapshot", "Manager's Dashboard", "Detailed Analysis Tables", "Trend Visualizations")
-- "description": why this format suits their specific combination of focus, metric, and dimension
-- "visualization_types": array of specific HubSpot chart types to use (Bar Chart, Line Chart, Area Chart, Donut Chart, Pie Chart, Table, Single Value, Funnel)
-- "report_count_range": object with "min" and "max" indicating how many reports this depth level would generate
-- "audience": who would primarily use reports in this format
-`
-  };
-
-  const prompt = stepPrompts[currentStep];
-
-  if (!prompt) {
-    return res.status(400).json({ error: `Unknown step: ${currentStep}. Valid steps are: business_focus, metric_type, comparison_dimension, output_format` });
-  }
-
-  try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4.1-mini-2025-04-14',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a HubSpot reporting expert helping users discover what reports are POSSIBLE given their specific property configuration. You NEVER suggest options that the properties cannot support. You ALWAYS ground your suggestions in specific property names from the provided list. You are thorough but practical.'
-        },
-        { role: 'user', content: prompt }
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.2
-    });
-    const content = JSON.parse(response.choices[0].message.content);
-    const options = content.options || (Array.isArray(content) ? content : Object.values(content)[0]) || [];
-    res.json(options);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// 5. REVISED: AI Report Suggestions - Fully Grounded in Properties
-app.post('/api/ai/suggest', async (req, res) => {
-  const { openaiKey, properties, selectedObjects, storyContext, businessProfile } = req.body;
-  const apiKey = openaiKey || process.env.OPENAI_API_KEY;
-
-  if (!apiKey) return res.status(400).json({ error: 'OpenAI API Key is required' });
-
-  const openai = new OpenAI({ apiKey });
-
-  const profileContext = businessProfile?.inferred_profile
-    ? JSON.stringify(businessProfile.inferred_profile, null, 2)
-    : 'No profile inference available';
-
   const prompt = `
-You are a HubSpot Custom Report Builder expert. Your task is to generate ACTIONABLE report configurations that a user can build in HubSpot's Custom Report Builder RIGHT NOW.
+You are an expert HubSpot Consultant. 
+Your goal is to propose a high-impact Dashboard for a client based on their available data.
 
-## CRITICAL CONSTRAINT - READ THIS CAREFULLY
-You can ONLY suggest reports that use the properties provided below. Do NOT invent properties. Do NOT assume properties exist. Every single property reference in your reports MUST come from the AVAILABLE PROPERTIES list. If you reference a property that is not in the list, the report will fail.
-
-## BUSINESS CONTEXT (Inferred from Properties)
+## CLIENT CONTEXT
 ${profileContext}
-
-## USER'S JOURNEY SELECTIONS
-- Business Focus: ${storyContext.business_focus}
-- Metric Type: ${storyContext.metric_type}
-- Comparison Dimension: ${storyContext.comparison_dimension}
-- Output Format: ${storyContext.output_format}
 
 ## AVAILABLE OBJECTS
 ${selectedObjects.join(', ')}
 
-## AVAILABLE PROPERTIES (THIS IS YOUR ONLY SOURCE OF TRUTH)
-${JSON.stringify(properties, null, 2)}
+## AVAILABLE PROPERTIES
+${propertyList}
 
 ## YOUR TASK
-Generate between 8 and 15 reports that:
-1. DIRECTLY ADDRESS the user's selected business focus: "${storyContext.business_focus}"
-2. USE the metric type: "${storyContext.metric_type}"
-3. SLICE DATA by the comparison dimension: "${storyContext.comparison_dimension}"
-4. PRESENT in the format: "${storyContext.output_format}"
-5. USE ONLY properties from the AVAILABLE PROPERTIES list above
-6. Are IMMEDIATELY ACTIONABLE (user can build these right now in HubSpot)
-
-For each report, provide IKEA-style assembly instructions that assume the user has never built a HubSpot report before. Be extremely specific.
-
-## HUBSPOT REPORT BUILDER CONSTRAINTS (Follow These)
-- Data sources must be from the selected objects: ${selectedObjects.join(', ')}
-- Cross-object reports require association relationships (e.g., Deals associated with Contacts)
-- Time-based filtering uses date properties from the list
-- Available Visualizations: Bar Chart, Line Chart, Area Chart, Donut Chart, Pie Chart, Table, Single Value, Funnel
-- Available Aggregations: Count of records, Sum, Average, Min, Max
-- Grouping is typically limited to 2-3 dimensions
-- Filters can use: is, is not, contains, does not contain, is greater than, is less than, is between, is known, is unknown
+1. **Adopt a Role**: Based on the inferred industry and data, decide what role you are playing (e.g., "SaaS Sales Ops Leader", "Marketing Attribution Specialist", "Service Efficiency Expert").
+2. **Propose a Dashboard**: Create a list of 6-12 cohesive reports that belong on a SINGLE dashboard.
+   - The dashboard should tell a story (e.g., "Full Funnel Visibility" or "Rep Performance Scorecard").
+   - DO NOT suggest random reports. They must fit together.
+3. **Verify Feasibility**: ONLY suggest reports that can be built with the AVAILABLE PROPERTIES.
 
 ## OUTPUT FORMAT
-Return ONLY a JSON object with a "reports" array. Each report object MUST have this exact structure:
-
+Return JSON:
 {
-  "title": "Specific, descriptive report name that indicates what it measures",
-  "business_question": "The exact business question this report answers - phrase it as a question",
-  "why_this_matters": "1 sentence explaining the business value specifically for ${storyContext.business_focus}",
-  "breeze_prompt": "A highly specific prompt optimized for HubSpot's Breeze AI. It MUST include: 1) The specific HubSpot Object(s), 2) The exact internal property names for metrics and grouping, 3) A clear timeframe (e.g., 'this year', 'last 90 days'), and 4) The desired visualization type (e.g., 'bar chart', 'table', 'line graph'). Format as a direct command. Example: 'Create a bar chart of deals showing the sum of amount grouped by dealstage, filtered by closedate is this quarter.'",
-  "confidence": "high|medium|low",
-  "confidence_note": "If medium/low, explain what property is missing or being approximated. If high, say 'All required properties available'",
-  "ikea_guide": {
-    "step_1_data_source": {
-      "instruction": "Clear instruction for what to select in the 'Choose your data sources' screen",
-      "primary_object": "The main object to select (must be from: ${selectedObjects.join(', ')})",
-      "secondary_objects": ["Any additional objects to join - only if needed and available"],
-      "association_note": "If multi-object: explain how they connect. If single object: say 'Single object report'"
-    },
-    "step_2_filters": {
-      "instruction": "Clear instruction for the filters to apply",
-      "filters": [
-        {
-          "property": "EXACT property name from the AVAILABLE PROPERTIES list",
-          "property_label": "The human-readable label for this property",
-          "operator": "is|is not|contains|is greater than|is less than|is between|is known|is unknown",
-          "value": "The specific value to filter by OR a description like 'Last 90 days' for date ranges"
-        }
-      ]
-    },
-    "step_3_configure": {
-      "instruction": "Clear instruction for configuring the chart axes/dimensions",
-      "x_axis_or_rows": {
-        "property": "EXACT property name from AVAILABLE PROPERTIES",
-        "property_label": "Human readable label",
-        "grouping": "by day|by week|by month|by quarter|by year|by value (for non-dates)"
-      },
-      "y_axis_or_values": {
-        "aggregation": "Count of records|Sum of [property]|Average of [property]|Min of [property]|Max of [property]",
-        "property": "EXACT property name OR 'records' for count",
-        "property_label": "Human readable label OR 'Records' for count"
-      },
-      "break_down_by": {
-        "property": "EXACT property name OR null if no breakdown",
-        "property_label": "Human readable label OR null"
-      }
-    },
-    "step_4_visualize": {
-      "instruction": "Clear instruction for selecting and configuring the visualization",
-      "chart_type": "Bar Chart|Line Chart|Area Chart|Donut Chart|Pie Chart|Table|Single Value|Funnel",
-      "why_this_chart": "1 sentence explaining why this visualization best represents this data"
+  "role": "The role you are assuming",
+  "dashboard_title": "A catchy title for the dashboard",
+  "dashboard_description": "2 sentences explaining the goal of this dashboard",
+  "proposed_reports": [
+    {
+      "id": "unique_slug",
+      "title": "Report Title",
+      "description": "What this shows and why it matters",
+      "metric_type": "Volume|Velocity|Conversion|Value|Distribution|Trend|Comparison",
+      "visual_style": "Bar|Line|Table|etc"
     }
-  },
-  "properties_used": ["Array of EXACT property names used - VERIFY each one exists in AVAILABLE PROPERTIES"],
-  "quick_variations": [
-    "1 suggestion for a quick modification that would give a different but related insight"
   ]
 }
-
-## SELF-CHECK BEFORE RESPONDING
-For EACH report, verify:
-[ ] Every property in "properties_used" exists in the AVAILABLE PROPERTIES list
-[ ] Every property referenced in filters, axes, and breakdowns is in the list
-[ ] The primary_object is in the selectedObjects list
-[ ] The chart_type makes sense for the data (e.g., don't use Line Chart for non-time-series)
-[ ] The business_question aligns with the user's business_focus selection
 `;
 
   try {
     const response = await openai.chat.completions.create({
       model: 'gpt-4.1-mini-2025-04-14',
       messages: [
-        {
-          role: 'system',
-          content: `You are a meticulous HubSpot reporting expert. Your #1 rule: NEVER hallucinate property names. Before including any property in your response, mentally verify it exists in the provided AVAILABLE PROPERTIES list. If a useful report would require a property that doesn't exist, either skip that report OR include it with confidence: "low" and explain what's missing.
+        { role: 'system', content: 'You are a helpful HubSpot expert.' },
+        { role: 'user', content: prompt }
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.3
+    });
+    const content = JSON.parse(response.choices[0].message.content);
+    res.json(content);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
-You generate reports that are:
-1. Immediately buildable with the exact properties provided
-2. Aligned with the user's stated business focus and preferences  
-3. Clear enough that a HubSpot beginner could follow the instructions
-4. Valuable enough that a busy professional would actually use them`
-        },
+// 5. NEW: Refine Proposal (Chat-based)
+app.post('/api/ai/refine-proposal', async (req, res) => {
+  const { openaiKey, currentProposal, userFeedback, properties } = req.body;
+  const apiKey = openaiKey || process.env.OPENAI_API_KEY;
+  if (!apiKey) return res.status(400).json({ error: 'OpenAI API Key is required' });
+
+  const openai = new OpenAI({ apiKey });
+
+  const prompt = `
+You are refining a HubSpot Dashboard Proposal based on user feedback.
+
+## CURRENT PROPOSAL
+Role: ${currentProposal.role}
+Title: ${currentProposal.dashboard_title}
+Reports:
+${JSON.stringify(currentProposal.proposed_reports, null, 2)}
+
+## USER FEEDBACK
+"${userFeedback}"
+
+## AVAILABLE PROPERTIES
+(Assume same properties as before, do not hallucinate new ones)
+
+## YOUR TASK
+Update the "proposed_reports" list based on the feedback.
+- If user says "remove X", remove it.
+- If user says "add Y", add a new report entry that feasible.
+- If user says "change focus to Z", rewrite the list.
+- User might also want to change the "role" or "dashboard_title".
+
+## OUTPUT FORMAT
+Return the FULL JSON object structure again (Role, Title, Description, Reports), but updated.
+`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4.1-mini-2025-04-14',
+      messages: [
+        { role: 'system', content: 'You are a helpful HubSpot expert refining a proposal.' },
+        { role: 'user', content: prompt }
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.3
+    });
+    const content = JSON.parse(response.choices[0].message.content);
+    res.json(content);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 6. UPDATED: Generate Final Guides (Based on Approved List)
+app.post('/api/ai/suggest', async (req, res) => {
+  const { openaiKey, properties, selectedObjects, approvedReports, businessProfile } = req.body;
+  const apiKey = openaiKey || process.env.OPENAI_API_KEY;
+
+  if (!apiKey) return res.status(400).json({ error: 'OpenAI API Key is required' });
+
+  const openai = new OpenAI({ apiKey });
+
+  const prompt = `
+You are a HubSpot Custom Report Builder expert. 
+Your task is to generate DETAILED BUILDING INSTRUCTIONS for a list of approved reports.
+
+## CONSTRAINT
+You can ONLY suggest reports that use the properties provided below. 
+
+## AVAILABLE OBJECTS
+${selectedObjects.join(', ')}
+
+## AVAILABLE PROPERTIES
+${JSON.stringify(properties, null, 2)}
+
+## APPROVED REPORTS TO BUILD
+${JSON.stringify(approvedReports, null, 2)}
+
+## YOUR TASK
+For EACH report in the "Approved Reports" list, generate the full technical configuration.
+
+## OUTPUT FORMAT
+Return ONLY a JSON object with a "reports" array. Each report object MUST have this exact structure:
+
+{
+  "title": "Use the title from the approved list",
+  "business_question": "The exact business question this report answers",
+  "why_this_matters": "Business value explanation",
+  "breeze_prompt": "Specific prompt for HubSpot AI (Object, Metric, Grouping, Filter, Visual)",
+  "confidence": "high|medium|low",
+  "ikea_guide": {
+    "step_1_data_source": { "instruction": "...", "primary_object": "...", "secondary_objects": ["..."] },
+    "step_2_filters": { "instruction": "...", "filters": [ { "property": "...", "operator": "...", "value": "..." } ] },
+    "step_3_configure": { "instruction": "...", "x_axis_or_rows": {...}, "y_axis_or_values": {...}, "break_down_by": {...} },
+    "step_4_visualize": { "instruction": "...", "chart_type": "..." }
+  },
+  "properties_used": ["..."]
+}
+`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4.1-mini-2025-04-14',
+      messages: [
+        { role: 'system', content: 'You are a HubSpot reporting expert.' },
         { role: 'user', content: prompt }
       ],
       response_format: { type: 'json_object' },
