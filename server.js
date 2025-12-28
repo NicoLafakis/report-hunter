@@ -39,8 +39,8 @@ app.use(session({
   }),
   name: 'report_hunter_sid',
   secret: JWT_SECRET,
-  resave: false,
-  saveUninitialized: false,
+  resave: true,
+  saveUninitialized: true,
   rolling: true,
   cookie: {
     secure: process.env.NODE_ENV === 'production',
@@ -92,19 +92,19 @@ const authenticateToken = (req, res, next) => {
 // --- AUTH ENDPOINTS ---
 
 app.get('/api/auth/captcha', (req, res) => {
-  const captcha = svgCaptcha.create({
+  const captcha = svgCaptcha.createMathExpr({
     size: 4,
-    noise: 2,
+    noise: 3,
     color: true,
-    background: '#f0f0f0'
+    background: '#f8f8f8'
   });
 
-  req.session.captcha = captcha.text.toLowerCase();
+  // The 'text' in math mode is the numeric answer
+  req.session.captcha = captcha.text;
 
-  // Explicitly save the session before sending response
   req.session.save((err) => {
     if (err) {
-      console.error('Session save error:', err);
+      console.error('Captcha session save error:', err);
       return res.status(500).send('Session error');
     }
     res.type('svg');
